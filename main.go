@@ -57,6 +57,6 @@ func main() {
 	r.HandleFunc("/loans/{id}", loan.ChangeLoanStatus).Methods("PATCH")
 	r.HandleFunc("/loans/{id}", loan.CancelLoan).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":8088", r))
+	log.Fatal(http.ListenAndServe(":80", r))
 
 }
