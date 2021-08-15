@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -12,8 +13,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+var username string = os.Getenv("DB_USERNAME")
+var pass string = os.Getenv("DB_PASS")
+
 //set for connection URI
-var client, err = mongo.NewClient(options.Client().ApplyURI("mongodb+srv://testuser:12345678ABC@cluster0.ndaoh.mongodb.net/LoanManagement"))
+var client, err = mongo.NewClient(options.Client().ApplyURI("mongodb+srv://" + username + ":" + pass + "@cluster0.ndaoh.mongodb.net/LoanManagement"))
 
 //set the timeout limit
 var ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)

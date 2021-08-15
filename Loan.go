@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
@@ -45,6 +46,10 @@ func (loan Loan) IsValidStatus(data string) bool {
 func (loan Loan) CreateLoan(response http.ResponseWriter, request *http.Request) {
 	request_data, _ := ioutil.ReadAll(request.Body)
 	json.Unmarshal(request_data, &loan)
+
+	if loan.Customername == "" || loan.Phoneno == "" || loan.Email == "" || loan.CreditScore == 0 || loan.LoanAmount == 0 {
+		http.Error(response, "Bad Request", http.StatusBadRequest)
+	}
 	loan.LoanId = GenerateID()
 	loan.Status = "New"
 	_, err := collection.InsertOne(context.TODO(), loan)
@@ -72,6 +77,7 @@ func (loan Loan) ChangeLoanStatus(response http.ResponseWriter, request *http.Re
 	if err != nil {
 		http.Error(response, "Status Change Failed", http.StatusNotModified)
 	}
+	response.WriteHeader(http.StatusOK)
 }
 
 func (loan Loan) CancelLoan(response http.ResponseWriter, request *http.Request) {
@@ -80,8 +86,10 @@ func (loan Loan) CancelLoan(response http.ResponseWriter, request *http.Request)
 	json.Unmarshal(request_data, &statusdata)
 	vars := mux.Vars(request)
 	filter := bson.M{"loanid": vars["id"]}
-	collection.DeleteOne(context.TODO(), filter)
-
+	_, err := collection.DeleteOne(context.TODO(), filter)
+	if err != nil {
+		http.Error(response, "Not Modified", http.StatusNotModified)
+	}
 }
 
 func (loan Loan) GetLoanByID(response http.ResponseWriter, request *http.Request) {
@@ -97,13 +105,31 @@ func (loan Loan) GetLoanByID(response http.ResponseWriter, request *http.Request
 func ListLoans(response http.ResponseWriter, request *http.Request) {
 
 	var loandata []Loan
-	filter := bson.M{}
+	var filter bson.M
+
+	query_status := request.URL.Query().Get("status")
+	query_AmountGreater, _ := strconv.Atoi(request.URL.Query().Get("greaterthan"))
+
+	if query_status == "" && query_AmountGreater == 0 {
+		filter = bson.M{}
+
+	} else if query_status == "" && query_AmountGreater != 0 {
+		greater := bson.M{"$gt": query_AmountGreater}
+		filter = bson.M{"loanamount": greater}
+
+	} else if query_status != "" && query_AmountGreater == 0 {
+		filter = bson.M{"status": query_status}
+	} else {
+		greater := bson.M{"$gt": query_AmountGreater}
+		filter = bson.M{"status": query_status, "loanamount": greater}
+
+	}
 	list_cursor, err := collection.Find(context.TODO(), filter)
 	if err != nil {
 		http.Error(response, "Unable to Fetch Data", http.StatusNotFound)
 	}
 	err = list_cursor.All(ctx, &loandata)
-	if err != nil {
+	if err != nil || len(loandata) <= 0 {
 		http.Error(response, "Unable to Fetch Data", http.StatusNotFound)
 	}
 	js, _ := json.Marshal(&loandata)
