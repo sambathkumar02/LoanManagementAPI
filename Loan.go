@@ -133,5 +133,6 @@ func ListLoans(response http.ResponseWriter, request *http.Request) {
 		http.Error(response, "Unable to Fetch Data", http.StatusNotFound)
 	}
 	js, _ := json.Marshal(&loandata)
+	response.Header().Set("Content-Type", "application/json")
 	response.Write(js)
 }
